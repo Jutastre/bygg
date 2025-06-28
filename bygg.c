@@ -3,8 +3,8 @@
 #include <string.h>
 
 void throw_error(const char* error) {
-    printf("Error: %s\n", error);
-    exit(1);
+    perror(error);
+    exit(EXIT_FAILURE);
 }
 
 int main(int argc, char** argv) {
@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
 
     FILE* fd = fopen("byggfile", "r");
     if (fd == NULL) {
-        throw_error("Can't open byggfile");
+        throw_error("Error opening byggfile");
     }
     char read_buffer[512];
     int line_len = 0;
@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
     // output Makefile:
     fd = fopen("Makefile", "w");
     if (fd == NULL) {
-        throw_error("Can't create Makefile");
+        throw_error("Error creating Makefile");
     }
     fprintf(fd,
             "define .RECIPEPREFIX\n"
@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
             "\n"
             "BINARY_NAME=%s\n"
             "CC=%s\n"
-            "CFLAGS=-c %s\n"
+            "CFLAGS=-c -MMD %s\n"
             "LDFLAGS=%s\n"
             "MODULES=%s\n"
             "%s\n"
@@ -120,23 +120,31 @@ int main(int argc, char** argv) {
             "\n"
             "-include $(OBJS:.o=.d)\n",
             BINARY_NAME, CC, CFLAGS, LDFLAGS, MODULES, freeform_buffer);
-        fclose(fd);
+    fclose(fd);
+
     // chain-call make:
+
+    // no args passed:
     if (argc <= 1) {
         int make_result = system("make");
         if (make_result == -1) {
             throw_error("Failed to run make");
-            return 1;
         }
+        return make_result;
     }
+
+    // passing on args to make:
+    char command_buffer[768] = "make ";
     for (int idx = 1; idx < argc; idx++) {
-        char buffer[512] = "make ";
-        sprintf(&buffer[5], "%s", argv[idx]);
-        int result = system("make");
-        if (result == -1) {
-            sprintf(buffer, "Failed to run \"make %s\"", argv[idx]);
-            throw_error(buffer);
-            return 1;
-        }
+        strcat(command_buffer, argv[idx]);
     }
+    printf("Executing \"%s\"\n", command_buffer);
+    fflush(NULL);
+    int make_result = system(command_buffer);
+    if (make_result == -1) {
+        char error_buffer[sizeof(command_buffer) + 19];
+        snprintf(error_buffer, sizeof(error_buffer), "Failed to run \"%s\"", command_buffer);
+        throw_error(error_buffer);
+    }
+    return make_result;
 }
