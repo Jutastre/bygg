@@ -1,2 +1,3 @@
 BINARY_NAME=bygg
 MODULES=bygg
+CFLAGS=-Wall -std=c23 -O3
