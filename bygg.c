@@ -2,77 +2,105 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MAX_LINE_SIZE 1024
+
 void throw_error(const char* error) {
     perror(error);
     exit(EXIT_FAILURE);
 }
 
 int main(int argc, char** argv) {
-    char BINARY_NAME[512] = "binary";
-    char CC[512] = "gcc-14";
-    char CFLAGS[512] = "-Wall -std=c23 -O0";  // TODO make -c not be optional
-    char LDFLAGS[512] = "-Linclude";
-    char MODULES[512] = "main";
-    char freeform_buffer[2048];
-    freeform_buffer[0] = '\0';
-    int freeform_cur = 0;
+    char BINARY_NAME[MAX_LINE_SIZE] = "binary";
+    char CC[MAX_LINE_SIZE] = "gcc-14";
+    char CFLAGS[MAX_LINE_SIZE] = "-Wall -std=c23 -O0";
+    char LDFLAGS[MAX_LINE_SIZE] = "-Llib";
+    char SRC_PATH[MAX_LINE_SIZE] = "";
+    char MODULES[MAX_LINE_SIZE] = "main";
+    char* passthrough_buffer;
+    int passthrough_size = 0;
+    // passthrough_buffer[0] = '\0';
+    // int freeform_cur = 0;
+
     // read byggfile:
 
     FILE* fd = fopen("byggfile", "r");
     if (fd == NULL) {
         throw_error("Error opening byggfile");
     }
-    char read_buffer[512];
+    char line_buffer[MAX_LINE_SIZE];
     int line_len = 0;
     int line_no = 1;
-    read_buffer[line_len] = fgetc(fd);
+    line_buffer[line_len] = fgetc(fd);
     char* target_var;
     // int read_cur;
-    while (read_buffer[line_len] != EOF && read_buffer[line_len] != '\0') {
-        while (read_buffer[line_len] != '\n' && read_buffer[line_len] != EOF &&
-               read_buffer[line_len] != '\0') {
-            line_len++;
-            read_buffer[line_len] = fgetc(fd);
+    while (line_buffer[line_len] != EOF && line_buffer[line_len] != '\0') {
+        if (line_len >= MAX_LINE_SIZE + 1) {
+            char error_msg[512];
+            snprintf(error_msg, 511, "Error: Line #%i too long", line_no);
+            throw_error(error_msg);
         }
-        read_buffer[line_len] = '\0';
-        int read_cur;
-        if (strncmp("BINARY_NAME", read_buffer, strlen("BINARY_NAME")) == 0) {
+        while (line_buffer[line_len] != '\n' && line_buffer[line_len] != EOF &&
+               line_buffer[line_len] != '\0') {
+            line_len++;
+            line_buffer[line_len] = fgetc(fd);
+        }
+        line_buffer[line_len] = '\0';
+        int read_cur = 0;
+        if (strncmp("BINARY_NAME", line_buffer, strlen("BINARY_NAME")) == 0 &&
+            (line_buffer[strlen("BINARY_NAME")] == ' ' ||
+             line_buffer[strlen("BINARY_NAME")] == '=')) {
             target_var = BINARY_NAME;
             read_cur = strlen("BINARY_NAME");
-        } else if (strncmp("CC", read_buffer, strlen("CC")) == 0) {
+        } else if (strncmp("CC", line_buffer, strlen("CC")) == 0 &&
+                   (line_buffer[strlen("CC")] == ' ' || line_buffer[strlen("CC")] == '=')) {
             target_var = CC;
             read_cur = strlen("CC");
-        } else if (strncmp("CFLAGS", read_buffer, strlen("CFLAGS")) == 0) {
+        } else if (strncmp("CFLAGS", line_buffer, strlen("CFLAGS")) == 0 &&
+                   (line_buffer[strlen("CFLAGS")] == ' ' || line_buffer[strlen("CFLAGS")] == '=')) {
             target_var = CFLAGS;
             read_cur = strlen("CFLAGS");
-        } else if (strncmp("LDFLAGS", read_buffer, strlen("LDFLAGS")) == 0) {
+        } else if (strncmp("LDFLAGS", line_buffer, strlen("LDFLAGS")) == 0 &&
+                   (line_buffer[strlen("LDFLAGS")] == ' ' ||
+                    line_buffer[strlen("LDFLAGS")] == '=')) {
             target_var = LDFLAGS;
             read_cur = strlen("LDFLAGS");
-        } else if (strncmp("MODULES", read_buffer, strlen("MODULES")) == 0) {
+        } else if (strncmp("SRC_PATH", line_buffer, strlen("SRC_PATH")) == 0 &&
+                   (line_buffer[strlen("SRC_PATH")] == ' ' ||
+                    line_buffer[strlen("SRC_PATH")] == '=')) {
+            target_var = SRC_PATH;
+            read_cur = strlen("SRC_PATH");
+        } else if (strncmp("MODULES", line_buffer, strlen("MODULES")) == 0 &&
+                   (line_buffer[strlen("MODULES")] == ' ' ||
+                    line_buffer[strlen("MODULES")] == '=')) {
             target_var = MODULES;
             read_cur = strlen("MODULES");
         } else {
-            target_var = freeform_buffer;
-            strncpy(&freeform_buffer[freeform_cur], read_buffer, line_len);
-            freeform_cur += line_len;
-            freeform_buffer[freeform_cur + 1] = '\0';
-            read_cur = 0;
+            int new_passthrough_size = passthrough_size + line_len;
+            char* new_passthrough_buffer = malloc(new_passthrough_size + 1);
+            if (passthrough_size > 0) {
+                strcpy(new_passthrough_buffer, passthrough_buffer);
+                free(passthrough_buffer);
+            }
+            passthrough_buffer = new_passthrough_buffer;
+            passthrough_size = new_passthrough_size;
+            strcat(passthrough_buffer, line_buffer);
+            continue;
         }
-        while (read_buffer[read_cur] == ' ') {
+        while (line_buffer[read_cur] == ' ') {
             read_cur++;
         }
-        if (read_buffer[read_cur] != '=') {
+        if (line_buffer[read_cur] != '=') {
             char error_buf[128];
             sprintf(error_buf, "Syntax error on line %i", line_no);
             throw_error(error_buf);
         }
         read_cur++;
-        strcpy(target_var, &read_buffer[read_cur]);
+        strcpy(target_var, &line_buffer[read_cur]);
         line_len = 0;
         line_no++;
-        read_buffer[line_len] = fgetc(fd);
-        while (read_buffer[line_len] == ' ' || read_buffer[line_len] == '\n') {
-            read_buffer[line_len] = fgetc(fd);
+        line_buffer[line_len] = fgetc(fd);
+        while (line_buffer[line_len] == ' ' || line_buffer[line_len] == '\n') {
+            line_buffer[line_len] = fgetc(fd);
         }
     }
 
@@ -94,6 +122,7 @@ int main(int argc, char** argv) {
             "CC=%s\n"
             "CFLAGS=-c -MMD %s\n"
             "LDFLAGS=%s\n"
+            "SRC_PATH=%s\n"
             "MODULES=%s\n"
             "%s\n"
             "OBJS := $(foreach module,$(MODULES),build/$(module).o)\n"
@@ -112,20 +141,22 @@ int main(int argc, char** argv) {
             "build/$(BINARY_NAME): $(OBJS)\n"
             "    $(CC) -o build/$(BINARY_NAME) $(OBJS) $(LDFLAGS)\n"
             "\n"
-            "build/%%.o : %%.c\n"
+            "build/%%.o : $(SRC_PATH)%%.c\n"
             "        $(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@\n"
             "\n"
             "clean:\n"
             "    rm -rf build\n"
             "\n"
             "-include $(OBJS:.o=.d)\n",
-            BINARY_NAME, CC, CFLAGS, LDFLAGS, MODULES, freeform_buffer);
+            BINARY_NAME, CC, CFLAGS, LDFLAGS, SRC_PATH, MODULES,
+            (passthrough_size > 0) ? passthrough_buffer : "");
     fclose(fd);
 
     // chain-call make:
 
     // no args passed:
     if (argc <= 1) {
+    printf("Executing \"make\"\n");
         int make_result = system("make");
         if (make_result == -1) {
             throw_error("Failed to run make");

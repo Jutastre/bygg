@@ -1,5 +1,6 @@
 BINARY_NAME=binary
 CC=gcc-14
 CFLAGS=-Wall -std=c23 -O0
-LDFLAGS=-Linclude
+LDFLAGS=-Llib
+SRC_PATH=
 MODULES=main
