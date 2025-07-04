@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
             "\n"
             "BINARY_NAME=%s\n"
             "CC=%s\n"
-            "CFLAGS=-MMD %s\n"
+            "CFLAGS=%s\n"
             "LDFLAGS=%s\n"
             "SRC_PATH=%s\n"
             "MODULES=%s\n"
