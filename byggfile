@@ -3,4 +3,4 @@ MODULES=bygg
 CFLAGS=-Wall -std=c23 -O3
 
 install: main
-    cp build/bygg /usr/local/bin/
+    install -Dm755 build/$(BINARY_NAME) /usr/local/bin/

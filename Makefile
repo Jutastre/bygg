@@ -6,7 +6,7 @@ MAKEFLAGS=-j 8
 
 BINARY_NAME=bygg
 CC=gcc-14
-CFLAGS=-MMD -Wall -std=c23 -O3
+CFLAGS=-Wall -std=c23 -O3
 LDFLAGS=-Llib
 SRC_PATH=
 MODULES=bygg
@@ -33,7 +33,7 @@ clean:
     rm -rf build
 
 install: main
-    cp build/bygg /usr/local/bin/
+    install -Dm755 build/$(BINARY_NAME) /usr/local/bin/
 
 
 -include $(OBJS:.o=.d)
