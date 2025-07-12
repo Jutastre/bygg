@@ -6,7 +6,7 @@ MAKEFLAGS=-j 8
 
 BINARY_NAME=bygg
 CC=gcc-14
-CFLAGS=-Wall -std=c23 -O3
+CFLAGS=-Wall -std=c23 -Og -g
 LDFLAGS=-Llib
 SRC_PATH=
 MODULES=bygg

@@ -11,7 +11,21 @@ void throw_error(const char* error) {
     exit(EXIT_FAILURE);
 }
 
+enum modes {
+    BYGG_MODE_NORMAL,
+    BYGG_MODE_PASSTRHOUGH_ARGS,
+    BYGG_MODE_REBUILD_AND_EXECUTE,
+};
+
 int main(int argc, char** argv) {
+    int argc_copy = argc;
+    char** argv_copy = malloc(sizeof(**argv_copy) * argc_copy);
+    enum modes mode = (argc > 1) ? BYGG_MODE_PASSTRHOUGH_ARGS : BYGG_MODE_NORMAL;
+    for (int idx = 0; idx < argc; idx++) {
+        if (strcmp(argv[idx], "--rebuild-and-run") == 0) {
+            mode = BYGG_MODE_REBUILD_AND_EXECUTE;
+        }
+    }
     char BINARY_NAME[MAX_LINE_SIZE] = "binary";
     char CC[MAX_LINE_SIZE] = "gcc-14";
     char CFLAGS[MAX_LINE_SIZE] = "-Wall -std=c23 -O0";
@@ -112,7 +126,6 @@ int main(int argc, char** argv) {
 
     fclose(fd);
 
-
     // output Makefile:
     if (DEBUG_PRINT) printf("Writing Makefile\n");  // debug
     fd = fopen("Makefile", "w");
@@ -164,28 +177,39 @@ int main(int argc, char** argv) {
     // chain-call make:
 
     if (DEBUG_PRINT) printf("Calling make\n");  // debug
-    // no args passed:
-    if (argc <= 1) {
-        printf("Executing \"make\"\n");
-        int make_result = system("make");
-        if (make_result == -1) {
-            throw_error("Failed to run make");
-        }
-        return make_result;
+    switch (mode) {
+        int system_call_result;
+        case BYGG_MODE_NORMAL:
+        case BYGG_MODE_REBUILD_AND_EXECUTE:
+            printf("Executing \"make\"\n");
+            system_call_result = system("make");
+            if (system_call_result == -1) {
+                throw_error("Failed to run make");
+            }
+            if (mode == BYGG_MODE_REBUILD_AND_EXECUTE) {
+                char buf[256];
+                char* tmp = strcat(buf, "./build/");
+                strcat(tmp, BINARY_NAME);
+                system_call_result = system(buf);
+                if (system_call_result == -1) {
+                    throw_error("Failed to run binary");
+                }
+            }
+            return system_call_result;
+        case BYGG_MODE_PASSTRHOUGH_ARGS:
+            char command_buffer[768] = "make ";
+            for (int idx = 1; idx < argc; idx++) {
+                strcat(command_buffer, argv[idx]);
+            }
+            printf("Executing \"%s\"\n", command_buffer);
+            fflush(NULL);
+            system_call_result = system(command_buffer);
+            if (system_call_result == -1) {
+                char error_buffer[sizeof(command_buffer) + 19];
+                snprintf(error_buffer, sizeof(error_buffer), "Failed to run \"%s\"",
+                         command_buffer);
+                throw_error(error_buffer);
+            }
+            return system_call_result;
     }
-
-    // passing on args to make:
-    char command_buffer[768] = "make ";
-    for (int idx = 1; idx < argc; idx++) {
-        strcat(command_buffer, argv[idx]);
-    }
-    printf("Executing \"%s\"\n", command_buffer);
-    fflush(NULL);
-    int make_result = system(command_buffer);
-    if (make_result == -1) {
-        char error_buffer[sizeof(command_buffer) + 19];
-        snprintf(error_buffer, sizeof(error_buffer), "Failed to run \"%s\"", command_buffer);
-        throw_error(error_buffer);
-    }
-    return make_result;
 }
