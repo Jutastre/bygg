@@ -4,7 +4,7 @@
 
 #define MAX_LINE_SIZE 1024
 
-#define DEBUG_PRINT false
+// #define DEBUG_PRINT false
 
 void throw_error(const char* error) {
     perror(error);
@@ -18,11 +18,12 @@ enum modes {
 };
 
 int main(int argc, char** argv) {
-    int argc_copy = argc;
-    char** argv_copy = malloc(sizeof(**argv_copy) * argc_copy);
+    // int argc_copy = argc;
+    // char** argv_copy = malloc(sizeof(*argv_copy) * argc_copy);
     enum modes mode = (argc > 1) ? BYGG_MODE_PASSTRHOUGH_ARGS : BYGG_MODE_NORMAL;
     for (int idx = 0; idx < argc; idx++) {
-        if (strcmp(argv[idx], "--rebuild-and-run") == 0) {
+        if (strcmp(argv[idx], "--rar") == 0) {
+            // printf("setting rar mode\n");
             mode = BYGG_MODE_REBUILD_AND_EXECUTE;
         }
     }
@@ -39,7 +40,7 @@ int main(int argc, char** argv) {
 
     // read byggfile:
 
-    if (DEBUG_PRINT) printf("Opening byggfile\n");  // debug
+    // if (DEBUG_PRINT) printf("Opening byggfile\n");  // debug
     FILE* fd = fopen("byggfile", "r");
     if (fd == NULL) {
         throw_error("Error opening byggfile");
@@ -50,7 +51,7 @@ int main(int argc, char** argv) {
     line_buffer[line_len] = fgetc(fd);
     // int read_cur;
     while (line_buffer[line_len] != EOF && line_buffer[line_len] != '\0') {
-        if (DEBUG_PRINT) printf("Reading line #%i\n", line_no);  // debug
+        // if (DEBUG_PRINT) printf("Reading line #%i\n", line_no);  // debug
         if (line_len > MAX_LINE_SIZE) {
             char error_msg[512];
             snprintf(error_msg, 511, "Error: Line #%i too long", line_no);
@@ -127,7 +128,7 @@ int main(int argc, char** argv) {
     fclose(fd);
 
     // output Makefile:
-    if (DEBUG_PRINT) printf("Writing Makefile\n");  // debug
+    // if (DEBUG_PRINT) printf("Writing Makefile\n");  // debug
     fd = fopen("Makefile", "w");
     if (fd == NULL) {
         throw_error("Error creating Makefile");
@@ -176,20 +177,33 @@ int main(int argc, char** argv) {
 
     // chain-call make:
 
-    if (DEBUG_PRINT) printf("Calling make\n");  // debug
+    // if (DEBUG_PRINT) printf("Calling make\n");  // debug
     switch (mode) {
         int system_call_result;
         case BYGG_MODE_NORMAL:
         case BYGG_MODE_REBUILD_AND_EXECUTE:
+            // printf("entering make block\n");
+            if (mode == BYGG_MODE_REBUILD_AND_EXECUTE) {
+                printf("Executing \"make clean\"\n");
+                fflush(NULL);
+                system_call_result = system("make clean");
+                if (system_call_result == -1) {
+                    throw_error("Failed to run make clean");
+                }
+            }
             printf("Executing \"make\"\n");
+            fflush(NULL);
             system_call_result = system("make");
             if (system_call_result == -1) {
                 throw_error("Failed to run make");
             }
             if (mode == BYGG_MODE_REBUILD_AND_EXECUTE) {
+                // printf("entering execute block\n");
                 char buf[256];
                 char* tmp = strcat(buf, "./build/");
                 strcat(tmp, BINARY_NAME);
+                printf("Executing \"%s\"\n", tmp);
+                fflush(NULL);
                 system_call_result = system(buf);
                 if (system_call_result == -1) {
                     throw_error("Failed to run binary");
@@ -197,6 +211,7 @@ int main(int argc, char** argv) {
             }
             return system_call_result;
         case BYGG_MODE_PASSTRHOUGH_ARGS:
+            // printf("entering passthrough block\n");
             char command_buffer[768] = "make ";
             for (int idx = 1; idx < argc; idx++) {
                 strcat(command_buffer, argv[idx]);

@@ -1,6 +1,6 @@
 BINARY_NAME=bygg
 MODULES=bygg
-CFLAGS=-Wall -std=c23 -O1 -g
+CFLAGS=-Wall -std=c23 -O3
 
 install: main
     install -Dm755 build/$(BINARY_NAME) /usr/local/bin/
